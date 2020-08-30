@@ -3,7 +3,6 @@ package firebase
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	firestore "cloud.google.com/go/firestore"
@@ -19,17 +18,6 @@ var Firestore *firestore.Client
 
 // Database is the default Realtime Database instance
 var Database *database.Client
-
-// CheckEnvironment checks the environment
-func CheckEnvironment() error {
-	if os.Getenv("FIREBASE_CONFIG") == "" {
-		return fmt.Errorf("FIREBASE_CONFIG environment not found")
-	}
-	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
-		return fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment not found")
-	}
-	return nil
-}
 
 // InitializeClients initialize Firebase app and clients
 func InitializeClients() error {
@@ -53,7 +41,13 @@ func InitializeClients() error {
 	return nil
 }
 
-// InitializeLog initialize log for Google Cloud Logging
-func InitializeLog() {
-	log.SetFlags(log.Flags() &^ log.Ltime &^ log.Ldate)
+// CheckEnvironment checks the environment
+func CheckEnvironment() error {
+	if os.Getenv("FIREBASE_CONFIG") == "" {
+		return fmt.Errorf("FIREBASE_CONFIG environment not found")
+	}
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") == "" {
+		return fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment not found")
+	}
+	return nil
 }
