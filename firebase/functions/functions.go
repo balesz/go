@@ -45,7 +45,6 @@ func GetFirestorePathFromResource(ctx context.Context) (string, error) {
 // GetDatabasePathFromResource is getting the database ref path from Metadata.Resource
 func GetDatabasePathFromResource(ctx context.Context) (string, error) {
 	meta, err := metadata.FromContext(ctx)
-	log.Printf("GetDatabasePathFromResource: Metadata=%v", meta)
 	if err != nil {
 		return "", err
 	}
