@@ -3,6 +3,7 @@ package firebase
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	firestore "cloud.google.com/go/firestore"
@@ -50,4 +51,9 @@ func InitializeClients() error {
 		return fmt.Errorf("App.Database: %v", err)
 	}
 	return nil
+}
+
+// InitializeLog initialize log for Google Cloud Logging
+func InitializeLog() {
+	log.SetFlags(log.Flags() &^ log.Ltime &^ log.Ldate)
 }
