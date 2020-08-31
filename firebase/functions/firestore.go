@@ -17,20 +17,20 @@ const FSTriggerUpdate = "providers/cloud.firestore/eventTypes/document.update"
 // FSTriggerWrite : Triggered when a document is created, updated or deleted.
 const FSTriggerWrite = "providers/cloud.firestore/eventTypes/document.write"
 
-// FSValueString : String typed field
+// FSValueString : String typed value
 type FSValueString struct {
 	StringValue string `json:"stringValue"`
 }
 
-// FSValueTimestamp : Timestamp typed field
+// FSValueTimestamp : Timestamp typed value
 type FSValueTimestamp struct {
 	TimestampValue time.Time `json:"timestampValue"`
 }
 
-func (val *FSValueString) String() string {
+func (val FSValueString) String() string {
 	return fmt.Sprintf("%v", val.StringValue)
 }
 
-func (val *FSValueTimestamp) String() string {
+func (val FSValueTimestamp) String() string {
 	return fmt.Sprintf("%v", time.Now().UTC().Format(time.RFC3339))
 }
