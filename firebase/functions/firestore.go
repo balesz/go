@@ -32,5 +32,5 @@ func (val FSValueString) String() string {
 }
 
 func (val FSValueTimestamp) String() string {
-	return fmt.Sprintf("%v", time.Now().UTC().Format(time.RFC3339))
+	return fmt.Sprintf("%v", val.TimestampValue.UTC().Format(time.RFC3339))
 }
