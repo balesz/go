@@ -4,26 +4,31 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"cloud.google.com/go/firestore"
+	"github.com/balesz/go/firebase"
+	"github.com/balesz/go/firebase/functions"
 )
 
-// DocumentPath returns the queue handler document of the given collection
-func DocumentPath(collection string) string {
-	return collection + "/$queue"
+const stateDocID = "/$queue"
+
+// HandleQueueStateDocument handles queue state doc change
+func HandleQueueStateDocument(ctx context.Context) bool {
+	path, err := functions.GetPath(ctx)
+	if err != nil || !strings.HasSuffix(path, stateDocID) {
+		return false
+	}
+	return true
 }
 
 // Start starts the queue handling process
-func Start(ctx context.Context, collection string) error {
-	projectID := os.Getenv("PROJECT_ID")
-	client, err := firestore.NewClient(ctx, projectID)
-	if err != nil {
-		return err
-	}
+func Start(ctx context.Context) error {
+	stateDocPath, _ := functions.GetPath(ctx)
 
-	doc := client.Doc(DocumentPath(collection))
+	doc := firebase.Firestore.Doc(stateDocPath)
 
-	return client.RunTransaction(ctx, func(ctx context.Context, tran *firestore.Transaction) error {
+	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
 		snap, err := tran.Get(doc)
 		if err != nil {
 			return err
@@ -50,22 +55,20 @@ func Start(ctx context.Context, collection string) error {
 		return tran.Update(doc, []firestore.Update{
 			{Path: "forceRun", Value: true},
 		})
-	})
+	}
+
+	return firebase.Firestore.RunTransaction(ctx, transaction)
 }
 
 // Handle handle the queue on the given collection
-func (event *FirestoreEvent) Handle(ctx context.Context, collection string, handler Handler) error {
-	if !event.needHandle() {
-		return fmt.Errorf("The queue state is invalid")
-	}
-
+func Handle(ctx context.Context, collection string, handler Handler) error {
 	projectID := os.Getenv("PROJECT_ID")
 	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
 		return err
 	}
 
-	doc := client.Doc(DocumentPath(collection))
+	doc := client.Doc(documentPath(collection))
 
 	return client.RunTransaction(ctx, func(ctx context.Context, tran *firestore.Transaction) error {
 		snap, err := tran.Get(doc)
@@ -81,14 +84,6 @@ func (event *FirestoreEvent) Handle(ctx context.Context, collection string, hand
 	})
 }
 
-func (event *FirestoreEvent) needHandle() bool {
-	change := event.getChange()
-	if change.NewValue.ForceRun {
-		return true
-	}
-	return false
-}
-
-func (event *FirestoreEvent) getChange() Change {
-	return Change{}
+func documentPath(collection string) string {
+	return collection + stateDocID
 }
