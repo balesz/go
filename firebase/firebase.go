@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	firestore "cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
@@ -50,4 +51,14 @@ func CheckEnvironment() error {
 		return fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment not found")
 	}
 	return nil
+}
+
+// DBPath creates a valid Realtime Database path from the given parts
+func DBPath(parts ...string) string {
+	return "/" + strings.Join(parts, "/")
+}
+
+// FSPath creates a valid Realtime Database path from the given parts
+func FSPath(parts ...string) string {
+	return strings.Join(parts, "/")
 }
