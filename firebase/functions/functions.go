@@ -29,6 +29,12 @@ func LogContext(ctx context.Context, event interface{}) {
 	log.Printf("Event: %v", event)
 }
 
+// GetMetadata get Cloud Functions Metadata from context
+func GetMetadata(ctx context.Context) (meta *metadata.Metadata, err error) {
+	meta, err = metadata.FromContext(ctx)
+	return
+}
+
 // GetPath gets the path of the resource
 func GetPath(ctx context.Context) (string, error) {
 	meta, err := metadata.FromContext(ctx)
