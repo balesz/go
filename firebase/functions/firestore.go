@@ -28,9 +28,9 @@ type FSValueTimestamp struct {
 }
 
 func (val *FSValueString) String() string {
-	return val.StringValue
+	return fmt.Sprintf("%v", val.StringValue)
 }
 
 func (val *FSValueTimestamp) String() string {
-	return fmt.Sprintf("%v", val.TimestampValue)
+	return fmt.Sprintf("%v", time.Now().UTC().Format(time.RFC3339))
 }
