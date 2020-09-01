@@ -15,11 +15,11 @@ type Handler interface {
 
 // Runner is the queue runner
 type Runner struct {
-	_documentRef *firestore.DocumentRef
-	_initialized bool
-	ExecutionID  string
-	Handler      Handler
-	Path         string
+	_documentPath string
+	_initialized  bool
+	ExecutionID   string
+	Handler       Handler
+	Path          string
 }
 
 // State is the type of the queue state holder

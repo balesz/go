@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -10,10 +11,11 @@ import (
 	"github.com/balesz/go/firebase"
 )
 
-const stateDocID = "/$queue"
+const stateDocID = "$queue"
 
 // IsStatePath returns true if the given path point to a queue state document
 func IsStatePath(path string) bool {
+	path = strings.TrimSpace(strings.TrimPrefix(path, "/"))
 	if len(strings.Split(path, "/"))%2 != 0 {
 		return false
 	}
@@ -39,7 +41,7 @@ func (runner Runner) Execute(ctx context.Context) error {
 	return nil
 }
 
-func (runner Runner) init() error {
+func (runner *Runner) init() error {
 	if runner._initialized {
 		return fmt.Errorf("The queue is already initialized")
 	} else if runner.ExecutionID == "" {
@@ -48,15 +50,17 @@ func (runner Runner) init() error {
 		return fmt.Errorf("The Handler field is empty")
 	} else if runner.Path == "" {
 		return fmt.Errorf("The Path field is empty")
+	} else if !regexp.MustCompile(`^/?\w+(?:/\w+)*$`).MatchString(runner.Path) {
+		return fmt.Errorf("The Path field is invalid")
 	}
 
-	parts := strings.Split(strings.TrimSpace(runner.Path), "/")
+	var path = strings.TrimPrefix(strings.TrimSpace(runner.Path), "/")
+	parts := strings.Split(path, "/")
 	if len(parts)%2 == 0 {
 		parts = parts[:len(parts)-1]
 	}
-	var path = strings.Join(append(parts, stateDocID), "/")
 
-	runner._documentRef = firebase.Firestore.Doc(path)
+	runner._documentPath = strings.Join(append(parts, stateDocID), "/")
 
 	runner._initialized = true
 
@@ -65,15 +69,16 @@ func (runner Runner) init() error {
 
 func (runner Runner) start(ctx context.Context) error {
 	maxAttempts := firestore.MaxAttempts(1)
+	var doc = firebase.Firestore.Doc(runner._documentPath)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(runner._documentRef)
+		snap, err := tran.Get(doc)
 		if err != nil {
 			return fmt.Errorf("tran.Get: %v", err)
 		}
 
 		if !snap.Exists() {
-			return tran.Create(runner._documentRef, State{
+			return tran.Create(doc, State{
 				IsRunning: true,
 				LastRunID: runner.ExecutionID,
 			})
@@ -89,7 +94,7 @@ func (runner Runner) start(ctx context.Context) error {
 			return fmt.Errorf("The queue runner is running")
 		}
 
-		return tran.Update(runner._documentRef, []firestore.Update{
+		return tran.Update(doc, []firestore.Update{
 			{Path: "isRunning", Value: true},
 			{Path: "lastRunID", Value: runner.ExecutionID},
 		})
@@ -100,9 +105,10 @@ func (runner Runner) start(ctx context.Context) error {
 
 func (runner Runner) handle(ctx context.Context) error {
 	maxAttempts := firestore.MaxAttempts(5)
+	var doc = firebase.Firestore.Doc(runner._documentPath)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(runner._documentRef)
+		snap, err := tran.Get(doc)
 		if err != nil {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -127,9 +133,10 @@ func (runner Runner) handle(ctx context.Context) error {
 
 func (runner Runner) stop(ctx context.Context) error {
 	maxAttempts := firestore.MaxAttempts(5)
+	var doc = firebase.Firestore.Doc(runner._documentPath)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(runner._documentRef)
+		snap, err := tran.Get(doc)
 		if err != nil {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -146,7 +153,7 @@ func (runner Runner) stop(ctx context.Context) error {
 			return fmt.Errorf("The currently running is not this runner")
 		}
 
-		return tran.Update(runner._documentRef, []firestore.Update{
+		return tran.Update(doc, []firestore.Update{
 			{Path: "isRunning", Value: false},
 			{Path: "lastRun", Value: time.Now()},
 		})
@@ -157,13 +164,14 @@ func (runner Runner) stop(ctx context.Context) error {
 
 func (runner Runner) needForceRun(ctx context.Context) error {
 	maxAttempts := firestore.MaxAttempts(2)
+	var doc = firebase.Firestore.Doc(runner._documentPath)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
 		if need := runner.Handler.NeedForceRun(ctx, tran); !need {
 			return nil
 		}
 
-		snap, err := tran.Get(runner._documentRef)
+		snap, err := tran.Get(doc)
 		if err != nil {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -178,7 +186,7 @@ func (runner Runner) needForceRun(ctx context.Context) error {
 			return fmt.Errorf("The queue runner running")
 		}
 
-		return tran.Update(runner._documentRef, []firestore.Update{
+		return tran.Update(doc, []firestore.Update{
 			{Path: "forceRun", Value: time.Now()},
 			{Path: "lastRun", Value: time.Now()},
 		})
