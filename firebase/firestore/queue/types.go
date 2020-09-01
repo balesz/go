@@ -10,7 +10,7 @@ import (
 // Handler type define the interface of queue handling functions
 type Handler interface {
 	Handle(ctx context.Context, tran *firestore.Transaction) error
-	NeedNextRun(ctx context.Context, tran *firestore.Transaction) bool
+	NeedForceRun(ctx context.Context, tran *firestore.Transaction) bool
 }
 
 // Runner is the queue runner

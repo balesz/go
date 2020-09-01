@@ -32,8 +32,8 @@ func (runner Runner) Execute(ctx context.Context) error {
 		return fmt.Errorf("runner.handle: %v", err)
 	} else if err := runner.stop(ctx); err != nil {
 		return fmt.Errorf("runner.stop: %v", err)
-	} else if err := runner.needNextRun(ctx); err != nil {
-		return fmt.Errorf("runner.needNextRun: %v", err)
+	} else if err := runner.needForceRun(ctx); err != nil {
+		return fmt.Errorf("runner.needForceRun: %v", err)
 	}
 
 	return nil
@@ -155,11 +155,11 @@ func (runner Runner) stop(ctx context.Context) error {
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (runner Runner) needNextRun(ctx context.Context) error {
+func (runner Runner) needForceRun(ctx context.Context) error {
 	maxAttempts := firestore.MaxAttempts(2)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		if need := runner.Handler.NeedNextRun(ctx, tran); !need {
+		if need := runner.Handler.NeedForceRun(ctx, tran); !need {
 			return nil
 		}
 
