@@ -3,9 +3,28 @@ package queue
 import (
 	"context"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/firestore"
+	"github.com/balesz/go/firebase"
+	"github.com/balesz/go/test"
 )
+
+var (
+	//executionID = "helloWorld"
+	executionID = time.Now().UTC().Format(time.RFC3339)
+)
+
+func TestEnvironment(t *testing.T) {
+	var ctx = context.Background()
+	if err := test.InitEnvironment("game", "../../../.env"); err != nil {
+		t.Error(err)
+	} else if err := firebase.InitializeClients(); err != nil {
+		t.Error(err)
+	} else if _, err := firebase.Firestore.Doc("test/test").Get(ctx); err != nil {
+		t.Error(err)
+	}
+}
 
 func TestIsStatePath(t *testing.T) {
 	if want, got := false, IsStatePath("/lobby/helloUser"); want != got {
@@ -42,12 +61,77 @@ func TestInit(t *testing.T) {
 	}
 }
 
+func TestStart(t *testing.T) {
+	var ctx = context.Background()
+	test.InitEnvironment("game", "../../../.env")
+	firebase.InitializeClients()
+
+	var execID = executionID
+	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+
+	if err := runner.init(); err != nil {
+		t.Error(err)
+	} else if err := runner.start(ctx); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHandle(t *testing.T) {
+	var ctx = context.Background()
+	test.InitEnvironment("game", "../../../.env")
+	firebase.InitializeClients()
+
+	var execID = executionID
+	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+
+	if err := runner.init(); err != nil {
+		t.Error(err)
+	} else if err := runner.handle(ctx); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStop(t *testing.T) {
+	var ctx = context.Background()
+	test.InitEnvironment("game", "../../../.env")
+	firebase.InitializeClients()
+
+	var execID = executionID
+	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+
+	if err := runner.init(); err != nil {
+		t.Error(err)
+	} else if err := runner.stop(ctx); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestForceRun(t *testing.T) {
+	var ctx = context.Background()
+	test.InitEnvironment("game", "../../../.env")
+	firebase.InitializeClients()
+
+	var execID = executionID
+	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+
+	if err := runner.init(); err != nil {
+		t.Error(err)
+	} else if err := runner.forceRun(ctx); err != nil {
+		t.Error(err)
+	}
+}
+
 type mockHandler struct{}
 
 func (handler mockHandler) Handle(ctx context.Context, tran *firestore.Transaction) error {
+	doc := firebase.Firestore.Doc("test/test")
+	err := tran.Set(doc, map[string]interface{}{"test": firestore.ServerTimestamp})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (handler mockHandler) NeedForceRun(ctx context.Context, tran *firestore.Transaction) bool {
-	return false
+	return true
 }

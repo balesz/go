@@ -24,8 +24,8 @@ type Runner struct {
 
 // State is the type of the queue state holder
 type State struct {
-	ForceRun  time.Time `firestore:"forceRun"`
+	ForceRun  time.Time `firestore:"forceRun,omitempty"`
 	IsRunning bool      `firestore:"isRunning"`
-	LastRun   time.Time `firestore:"lastRun, serverTimestamp"`
+	LastRun   time.Time `firestore:"lastRun,serverTimestamp"`
 	LastRunID string    `firestore:"lastRunID"`
 }
