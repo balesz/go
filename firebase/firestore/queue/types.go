@@ -7,19 +7,46 @@ import (
 	"cloud.google.com/go/firestore"
 )
 
-// Handler type define the interface of queue handling functions
-type Handler interface {
-	Handle(ctx context.Context, tran *firestore.Transaction) error
-	NeedForceRun(ctx context.Context, tran *firestore.Transaction) bool
+// Queue is the struct of the queue
+type Queue struct {
+	rootPath  string
+	statePath string
 }
 
-// Runner is the queue runner
-type Runner struct {
-	_documentPath string
-	_initialized  bool
-	ExecutionID   string
-	Handler       Handler
-	Path          string
+type iqueue interface {
+	Processor(workers ...Worker) Processor
+}
+
+// Processor is the struct of the queue processor
+type Processor struct {
+	queue   Queue
+	workers []Worker
+}
+
+type iprocessor interface {
+	Add(worker Worker)
+	Process(ctx context.Context, id string) error
+	createProcess(ctx context.Context, id string, worker Worker) process
+}
+
+type process struct {
+	ctx       context.Context
+	processID string
+	processor Processor
+	worker    Worker
+}
+
+type iprocess interface {
+	start() error
+	handle() error
+	stop() error
+	forceRun() error
+}
+
+// Worker defines the queue worker interface
+type Worker interface {
+	Execute(ctx context.Context, tran *firestore.Transaction) error
+	NeedForceExec(ctx context.Context, tran *firestore.Transaction) bool
 }
 
 // State is the type of the queue state holder

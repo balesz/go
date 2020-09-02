@@ -23,54 +23,72 @@ func IsStatePath(path string) bool {
 	return strings.HasSuffix(path, stateDocID)
 }
 
-// Execute is execute the queue runner
-func (runner Runner) Execute(ctx context.Context) error {
-	firebase.InitializeClients()
-
-	if err := runner.init(); err != nil {
-		return fmt.Errorf("runner.init: %v", err)
-	} else if err := runner.start(ctx); err != nil {
-		return fmt.Errorf("runner.start: %v", err)
-	} else if err := runner.handle(ctx); err != nil {
-		return fmt.Errorf("runner.handle: %v", err)
-	} else if err := runner.stop(ctx); err != nil {
-		return fmt.Errorf("runner.stop: %v", err)
-	} else if err := runner.forceRun(ctx); err != nil {
-		return fmt.Errorf("runner.forceRun: %v", err)
+// New creates a new queue
+func New(path string) (queue Queue, err error) {
+	if path == "" {
+		err = fmt.Errorf("The path parameter is empty")
+	} else if !regexp.MustCompile(`^/?\w+(?:/\w+)*$`).MatchString(path) {
+		err = fmt.Errorf("The path parameter is invalid")
 	}
 
-	return nil
-}
-
-func (runner *Runner) init() error {
-	if runner._initialized {
-		return fmt.Errorf("The queue is already initialized")
-	} else if runner.ExecutionID == "" {
-		return fmt.Errorf("The ExecutionID field is empty")
-	} else if runner.Handler == nil {
-		return fmt.Errorf("The Handler field is empty")
-	} else if runner.Path == "" {
-		return fmt.Errorf("The Path field is empty")
-	} else if !regexp.MustCompile(`^/?\w+(?:/\w+)*$`).MatchString(runner.Path) {
-		return fmt.Errorf("The Path field is invalid")
-	}
-
-	var path = strings.TrimPrefix(strings.TrimSpace(runner.Path), "/")
-	parts := strings.Split(path, "/")
+	var trimmed = strings.TrimPrefix(strings.TrimSpace(path), "/")
+	parts := strings.Split(trimmed, "/")
 	if len(parts)%2 == 0 {
 		parts = parts[:len(parts)-1]
 	}
 
-	runner._documentPath = strings.Join(append(parts, stateDocID), "/")
+	queue = Queue{
+		rootPath:  strings.Join(parts, "/"),
+		statePath: strings.Join(append(parts, stateDocID), "/"),
+	}
 
-	runner._initialized = true
+	return
+}
+
+// Processor creates a new processor instance
+func (queue Queue) Processor(workers ...Worker) (proc Processor, err error) {
+	if queue.rootPath == "" || queue.statePath == "" {
+		err = fmt.Errorf("Queue is not initialized")
+	}
+	proc = Processor{queue: queue, workers: workers}
+	return
+}
+
+// Add method is add new worker to the processor
+func (processor Processor) Add(worker Worker) {
+	processor.workers = append(processor.workers, worker)
+}
+
+// Process method is execute the workers on the queue
+func (processor Processor) Process(ctx context.Context, id string) error {
+	firebase.InitializeClients()
+
+	var process = processor.createProcess(ctx, id, 0)
+
+	if err := process.start(); err != nil {
+		return fmt.Errorf("process.start: %v", err)
+	} else if err := process.handle(); err != nil {
+		return fmt.Errorf("process.handle: %v", err)
+	} else if err := process.stop(); err != nil {
+		return fmt.Errorf("process.stop: %v", err)
+	} else if err := process.forceRun(); err != nil {
+		return fmt.Errorf("process.forceRun: %v", err)
+	}
 
 	return nil
 }
 
-func (runner Runner) start(ctx context.Context) error {
-	maxAttempts := firestore.MaxAttempts(1)
-	var doc = firebase.Firestore.Doc(runner._documentPath)
+func (processor Processor) createProcess(ctx context.Context, id string, idx int) process {
+	return process{ctx: ctx, processID: id, processor: processor, worker: processor.workers[idx]}
+}
+
+func (process process) start() error {
+	var (
+		ctx         = process.ctx
+		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		maxAttempts = firestore.MaxAttempts(1)
+		processID   = process.processID
+	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
 		snap, err := tran.Get(doc)
@@ -81,7 +99,7 @@ func (runner Runner) start(ctx context.Context) error {
 		if !snap.Exists() {
 			return tran.Create(doc, State{
 				IsRunning: true,
-				LastRunID: runner.ExecutionID,
+				LastRunID: processID,
 			})
 		}
 
@@ -98,16 +116,21 @@ func (runner Runner) start(ctx context.Context) error {
 		return tran.Update(doc, []firestore.Update{
 			{Path: "isRunning", Value: true},
 			{Path: "lastRun", Value: firestore.ServerTimestamp},
-			{Path: "lastRunID", Value: runner.ExecutionID},
+			{Path: "lastRunID", Value: processID},
 		})
 	}
 
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (runner Runner) handle(ctx context.Context) error {
-	maxAttempts := firestore.MaxAttempts(5)
-	var doc = firebase.Firestore.Doc(runner._documentPath)
+func (process process) handle() error {
+	var (
+		ctx         = process.ctx
+		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		maxAttempts = firestore.MaxAttempts(5)
+		processID   = process.processID
+		worker      = process.worker
+	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
 		snap, err := tran.Get(doc)
@@ -123,19 +146,23 @@ func (runner Runner) handle(ctx context.Context) error {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if !state.IsRunning {
 			return fmt.Errorf("The queue runner not running")
-		} else if state.LastRunID != runner.ExecutionID {
+		} else if state.LastRunID != processID {
 			return fmt.Errorf("The currently running is not this runner")
 		}
 
-		return runner.Handler.Handle(ctx, tran)
+		return worker.Execute(ctx, tran)
 	}
 
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (runner Runner) stop(ctx context.Context) error {
-	maxAttempts := firestore.MaxAttempts(5)
-	var doc = firebase.Firestore.Doc(runner._documentPath)
+func (process process) stop() error {
+	var (
+		ctx         = process.ctx
+		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		maxAttempts = firestore.MaxAttempts(5)
+		processID   = process.processID
+	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
 		snap, err := tran.Get(doc)
@@ -151,7 +178,7 @@ func (runner Runner) stop(ctx context.Context) error {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if !state.IsRunning {
 			return fmt.Errorf("The queue runner not running")
-		} else if state.LastRunID != runner.ExecutionID {
+		} else if state.LastRunID != processID {
 			return fmt.Errorf("The currently running is not this runner")
 		}
 
@@ -163,12 +190,17 @@ func (runner Runner) stop(ctx context.Context) error {
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (runner Runner) forceRun(ctx context.Context) error {
-	maxAttempts := firestore.MaxAttempts(2)
-	var doc = firebase.Firestore.Doc(runner._documentPath)
+func (process process) forceRun() error {
+	var (
+		ctx         = process.ctx
+		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		maxAttempts = firestore.MaxAttempts(2)
+		processID   = process.processID
+		worker      = process.worker
+	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		if !runner.Handler.NeedForceRun(ctx, tran) {
+		if !worker.NeedForceExec(ctx, tran) {
 			return nil
 		}
 
@@ -185,7 +217,7 @@ func (runner Runner) forceRun(ctx context.Context) error {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if state.IsRunning {
 			return fmt.Errorf("The queue runner is running")
-		} else if state.LastRunID != runner.ExecutionID {
+		} else if state.LastRunID != processID {
 			return fmt.Errorf("The currently running is not this runner")
 		}
 

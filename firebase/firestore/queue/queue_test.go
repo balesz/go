@@ -3,7 +3,6 @@ package queue
 import (
 	"context"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/balesz/go/firebase"
@@ -11,8 +10,8 @@ import (
 )
 
 var (
-	//executionID = "helloWorld"
-	executionID = time.Now().UTC().Format(time.RFC3339)
+	executionID = "helloWorld"
+	//executionID = time.Now().UTC().Format(time.RFC3339)
 )
 
 func TestEnvironment(t *testing.T) {
@@ -34,30 +33,22 @@ func TestIsStatePath(t *testing.T) {
 	}
 }
 
-func TestInit(t *testing.T) {
-	var runner = Runner{}
-	if want, got := "The ExecutionID field is empty", runner.init(); want != got.Error() {
+func TestNew(t *testing.T) {
+	want := "The path parameter is empty"
+	if _, got := New(""); want != got.Error() {
 		t.Errorf("%v != %v", want, got)
 	}
-	runner.ExecutionID = "executuionID"
-	if want, got := "The Handler field is empty", runner.init(); want != got.Error() {
+	want = "The path parameter is invalid"
+	if _, got := New("/test/test/"); want != got.Error() {
 		t.Errorf("%v != %v", want, got)
 	}
-	runner.Handler = mockHandler{}
-	if want, got := "The Path field is empty", runner.init(); want != got.Error() {
-		t.Errorf("%v != %v", want, got)
+	want = "test"
+	if got, _ := New("/test/test"); want != got.rootPath {
+		t.Errorf("%v != %v", want, got.rootPath)
 	}
-	runner.Path = "/lobby/userID/"
-	if want, got := "The Path field is invalid", runner.init(); want != got.Error() {
-		t.Errorf("%v != %v", want, got)
-	}
-	runner.Path = "/lobby/userID"
-	if got := runner.init(); nil != got {
-		t.Errorf("%v != %v", nil, got)
-	} else if !runner._initialized {
-		t.Errorf("Runner is not initialized")
-	} else if runner._documentPath != "lobby/$queue" {
-		t.Errorf("Invalid document path")
+	want = "test/$queue"
+	if got, _ := New("/test/test"); want != got.statePath {
+		t.Errorf("%v != %v", want, got.statePath)
 	}
 }
 
@@ -66,12 +57,11 @@ func TestStart(t *testing.T) {
 	test.InitEnvironment("game", "../../../.env")
 	firebase.InitializeClients()
 
-	var execID = executionID
-	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+	queue, _ := New("test")
+	processor, _ := queue.Processor(mockHandler{})
+	process := processor.createProcess(ctx, executionID, 0)
 
-	if err := runner.init(); err != nil {
-		t.Error(err)
-	} else if err := runner.start(ctx); err != nil {
+	if err := process.start(); err != nil {
 		t.Error(err)
 	}
 }
@@ -81,12 +71,11 @@ func TestHandle(t *testing.T) {
 	test.InitEnvironment("game", "../../../.env")
 	firebase.InitializeClients()
 
-	var execID = executionID
-	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+	queue, _ := New("test")
+	processor, _ := queue.Processor(mockHandler{})
+	process := processor.createProcess(ctx, executionID, 0)
 
-	if err := runner.init(); err != nil {
-		t.Error(err)
-	} else if err := runner.handle(ctx); err != nil {
+	if err := process.handle(); err != nil {
 		t.Error(err)
 	}
 }
@@ -96,12 +85,11 @@ func TestStop(t *testing.T) {
 	test.InitEnvironment("game", "../../../.env")
 	firebase.InitializeClients()
 
-	var execID = executionID
-	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+	queue, _ := New("test")
+	processor, _ := queue.Processor(mockHandler{})
+	process := processor.createProcess(ctx, executionID, 0)
 
-	if err := runner.init(); err != nil {
-		t.Error(err)
-	} else if err := runner.stop(ctx); err != nil {
+	if err := process.stop(); err != nil {
 		t.Error(err)
 	}
 }
@@ -111,19 +99,18 @@ func TestForceRun(t *testing.T) {
 	test.InitEnvironment("game", "../../../.env")
 	firebase.InitializeClients()
 
-	var execID = executionID
-	var runner = Runner{ExecutionID: execID, Handler: mockHandler{}, Path: "test"}
+	queue, _ := New("test")
+	processor, _ := queue.Processor(mockHandler{})
+	process := processor.createProcess(ctx, executionID, 0)
 
-	if err := runner.init(); err != nil {
-		t.Error(err)
-	} else if err := runner.forceRun(ctx); err != nil {
+	if err := process.forceRun(); err != nil {
 		t.Error(err)
 	}
 }
 
 type mockHandler struct{}
 
-func (handler mockHandler) Handle(ctx context.Context, tran *firestore.Transaction) error {
+func (handler mockHandler) Execute(ctx context.Context, tran *firestore.Transaction) error {
 	doc := firebase.Firestore.Doc("test/test")
 	err := tran.Set(doc, map[string]interface{}{"test": firestore.ServerTimestamp})
 	if err != nil {
@@ -132,6 +119,6 @@ func (handler mockHandler) Handle(ctx context.Context, tran *firestore.Transacti
 	return nil
 }
 
-func (handler mockHandler) NeedForceRun(ctx context.Context, tran *firestore.Transaction) bool {
+func (handler mockHandler) NeedForceExec(ctx context.Context, tran *firestore.Transaction) bool {
 	return true
 }
