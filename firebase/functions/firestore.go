@@ -2,7 +2,9 @@ package functions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"cloud.google.com/go/functions/metadata"
@@ -45,6 +47,16 @@ func (val FSEventValue) String() string {
 	return fmt.Sprintf(format, val.CreateTime, val.Fields, val.Name, val.Name)
 }
 
+// DataTo convert FSEventValue to the given type
+func (val FSEventValue) DataTo(dest interface{}) {
+	var data = map[string]interface{}{}
+	for k, v := range val.Fields {
+		data[k] = v.Value()
+	}
+	encoded, _ := json.Marshal(data)
+	json.Unmarshal(encoded, dest)
+}
+
 // FSEventField FSEventField
 type FSEventField struct {
 	AsString    *string    `json:"stringValue,omitempty"`
@@ -52,12 +64,17 @@ type FSEventField struct {
 }
 
 func (field FSEventField) String() string {
+	return fmt.Sprintf("%v", field.Value())
+}
+
+// Value gets the dynamic value of the field
+func (field FSEventField) Value() interface{} {
 	if field.AsString != nil {
-		return fmt.Sprintf("%v", *field.AsString)
+		return *field.AsString
 	} else if field.AsTimestamp != nil {
-		return fmt.Sprintf("%v", (*field.AsTimestamp).UTC().Format(time.RFC3339))
+		return *field.AsTimestamp
 	}
-	return fmt.Sprintf("<Unknown>")
+	return nil
 }
 
 // FSEventUpdateMask FSEventUpdateMask
@@ -70,30 +87,42 @@ func (mask FSEventUpdateMask) String() string {
 	return fmt.Sprintf(format, mask.FieldPaths)
 }
 
-// MockChanges MockChanges
-type MockChanges struct {
-	Name string
-	New  map[string]interface{}
-	Old  map[string]interface{}
+// MockEvent MockEvent
+type MockEvent struct {
+	_new     map[string]interface{}
+	_old     map[string]interface{}
+	New      interface{}
+	Old      interface{}
+	Resource string
+	Trigger  string
 }
 
-// FSMockContext FSMockContext
-func FSMockContext(trigger string, changes MockChanges) (ctx context.Context, event FSEvent) {
-	event = FSEvent{
-		OldValue:   changes.eventValue(changes.Old),
-		Value:      changes.eventValue(changes.New),
-		UpdateMask: changes.eventUpdateMask(),
-	}
-	ctx = metadata.NewContext(context.Background(), &metadata.Metadata{
+// CreateContext creates context for testing
+func (evnt *MockEvent) CreateContext(base context.Context) (ctx context.Context, event FSEvent) {
+	evnt._new = evnt.unmarshal(evnt.New)
+	evnt._old = evnt.unmarshal(evnt.Old)
+	ctx = metadata.NewContext(base, &metadata.Metadata{
 		EventID:   time.Now().UTC().Format(time.RFC3339),
-		EventType: trigger,
-		Resource:  &metadata.Resource{RawPath: changes.Name},
+		EventType: evnt.Trigger,
+		Resource:  &metadata.Resource{RawPath: evnt.Resource},
 		Timestamp: time.Now(),
 	})
+	event = FSEvent{
+		OldValue:   evnt.eventValue(evnt._old),
+		Value:      evnt.eventValue(evnt._new),
+		UpdateMask: evnt.eventUpdateMask(),
+	}
 	return
 }
 
-func (chg MockChanges) eventValue(doc map[string]interface{}) FSEventValue {
+func (evnt MockEvent) unmarshal(data interface{}) map[string]interface{} {
+	marshal, _ := json.Marshal(data)
+	var unmarshal map[string]interface{}
+	json.Unmarshal(marshal, &unmarshal)
+	return unmarshal
+}
+
+func (evnt MockEvent) eventValue(doc map[string]interface{}) FSEventValue {
 	var fields = map[string]FSEventField{}
 
 	for key, value := range doc {
@@ -105,24 +134,24 @@ func (chg MockChanges) eventValue(doc map[string]interface{}) FSEventValue {
 	}
 
 	return FSEventValue{
-		CreateTime: time.Now(),
+		CreateTime: time.Now().Add(time.Duration(rand.Intn(72)) * time.Hour),
 		Fields:     fields,
-		Name:       chg.Name,
+		Name:       evnt.Resource,
 		UpdateTime: time.Now(),
 	}
 }
 
-func (chg MockChanges) eventUpdateMask() FSEventUpdateMask {
+func (evnt MockEvent) eventUpdateMask() FSEventUpdateMask {
 	var keys = map[string]bool{}
 
-	for key, val := range chg.Old {
-		if chg.New[key] != val {
+	for key, val := range evnt._old {
+		if evnt._new[key] != val {
 			keys[key] = true
 		}
 	}
 
-	for key, val := range chg.New {
-		if chg.Old[key] != val {
+	for key, val := range evnt._new {
+		if evnt._old[key] != val {
 			keys[key] = true
 		}
 	}
