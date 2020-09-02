@@ -27,7 +27,7 @@ func IsStatePath(path string) bool {
 func New(path string) (queue Queue, err error) {
 	if path == "" {
 		err = fmt.Errorf("The path parameter is empty")
-	} else if !regexp.MustCompile(`^/?\w+(?:/\w+)*$`).MatchString(path) {
+	} else if !regexp.MustCompile(`^/?\w+(?:/[\w\$]+)*$`).MatchString(path) {
 		err = fmt.Errorf("The path parameter is invalid")
 	}
 
