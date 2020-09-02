@@ -1,8 +1,7 @@
-package test
+package env
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"runtime"
@@ -11,8 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-// InitEnvironment initialize the environment with viper
-func InitEnvironment(environment string, configPaths ...string) error {
+// Init initialize the environment with viper
+func Init(environment string, configPaths ...string) error {
 	_, caller, _, _ := runtime.Caller(1)
 	configPath := path.Dir(caller)
 
@@ -44,16 +43,4 @@ func InitEnvironment(environment string, configPaths ...string) error {
 	}
 
 	return nil
-}
-
-// InitLoggerArgs is the arguments of InitLogger
-type InitLoggerArgs struct {
-	RemoveTime bool
-}
-
-// InitLogger is initialize logger
-func InitLogger(args InitLoggerArgs) {
-	if args.RemoveTime {
-		log.SetFlags(log.Flags() &^ log.Ldate &^ log.Ltime)
-	}
 }

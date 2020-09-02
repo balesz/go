@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"cloud.google.com/go/firestore"
+
+	"github.com/balesz/go/env"
 	"github.com/balesz/go/firebase"
-	"github.com/balesz/go/test"
 )
 
 var (
@@ -16,7 +17,7 @@ var (
 
 func TestEnvironment(t *testing.T) {
 	var ctx = context.Background()
-	if err := test.InitEnvironment("game", "../../../.env"); err != nil {
+	if err := env.Init("game", "../../../.env"); err != nil {
 		t.Error(err)
 	} else if err := firebase.InitializeClients(); err != nil {
 		t.Error(err)
@@ -54,7 +55,7 @@ func TestNew(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	var ctx = context.Background()
-	test.InitEnvironment("game", "../../../.env")
+	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
 	queue, _ := New("test")
@@ -68,7 +69,7 @@ func TestStart(t *testing.T) {
 
 func TestHandle(t *testing.T) {
 	var ctx = context.Background()
-	test.InitEnvironment("game", "../../../.env")
+	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
 	queue, _ := New("test")
@@ -82,7 +83,7 @@ func TestHandle(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	var ctx = context.Background()
-	test.InitEnvironment("game", "../../../.env")
+	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
 	queue, _ := New("test")
@@ -96,7 +97,7 @@ func TestStop(t *testing.T) {
 
 func TestForceRun(t *testing.T) {
 	var ctx = context.Background()
-	test.InitEnvironment("game", "../../../.env")
+	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
 	queue, _ := New("test")
