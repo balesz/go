@@ -12,13 +12,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const stateDocID = "--queue_state--"
-
-const forceRunDocID = "--queue_force_run--"
-
 // New creates a new queue
 func New(statePath string, forceRunPath string) (queue Queue, err error) {
-	var pathRegexp = regexp.MustCompile(`^/?\w+(?:/[\w\$]+)*$`)
+	var pathRegexp = regexp.MustCompile(`^\w+(?:/[\w\$\-]+)*$`)
 
 	if statePath == "" {
 		err = fmt.Errorf("The statePath parameter is empty")
@@ -26,27 +22,21 @@ func New(statePath string, forceRunPath string) (queue Queue, err error) {
 	} else if !pathRegexp.MatchString(statePath) {
 		err = fmt.Errorf("The statePath parameter is invalid")
 		return
-	}
-
-	if forceRunPath != "" && !pathRegexp.MatchString(forceRunPath) {
-		err = fmt.Errorf("The forceRunPath parameter is invalid")
+	} else if len(strings.Split(strings.TrimSpace(strings.Trim(statePath, "/")), "/"))%2 != 0 {
+		err = fmt.Errorf("The statePath parameter is not a document path")
 		return
 	}
 
-	pathWithSuffix := func(path string, suffix string) string {
-		var trimmed = strings.TrimPrefix(strings.TrimSpace(path), "/")
-		parts := strings.Split(trimmed, "/")
-		if len(parts)%2 == 0 || suffix == "" {
-			return strings.Join(parts, "/")
-		}
-		return strings.Join(append(parts, suffix), "/")
-	}
-
-	statePath = pathWithSuffix(statePath, stateDocID)
 	if forceRunPath == "" {
-		forceRunPath = statePath + "/force/" + forceRunDocID
+		err = fmt.Errorf("The forceRunPath parameter is empty")
+		return
+	} else if !pathRegexp.MatchString(forceRunPath) {
+		err = fmt.Errorf("The forceRunPath parameter is invalid")
+		return
+	} else if len(strings.Split(strings.TrimSpace(strings.Trim(forceRunPath, "/")), "/"))%2 != 0 {
+		err = fmt.Errorf("The forceRunPath parameter is not a document path")
+		return
 	}
-	forceRunPath = pathWithSuffix(forceRunPath, forceRunDocID)
 
 	queue = Queue{forceRunPath: forceRunPath, statePath: statePath}
 
