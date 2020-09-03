@@ -229,6 +229,8 @@ func (process process) forceRun() error {
 			return fmt.Errorf("The queue runner is running")
 		} else if state.LastRunID != processID {
 			return fmt.Errorf("The currently running is not this runner")
+		} else if state.ForceRunRef == nil {
+			return fmt.Errorf("Missing forceRunRef field")
 		}
 
 		return tran.Set(state.ForceRunRef, ForceRunState{
