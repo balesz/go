@@ -12,42 +12,50 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const stateDocID = "$queue"
+const stateDocID = "$queue_state"
 
-// IsStatePath returns true if the given path point to a queue state document
-func IsStatePath(path string) bool {
-	path = strings.TrimSpace(strings.TrimPrefix(path, "/"))
-	if len(strings.Split(path, "/"))%2 != 0 {
-		return false
-	}
-	return strings.HasSuffix(path, stateDocID)
-}
+const forceRunDocID = "$queue_force_run"
 
 // New creates a new queue
-func New(path string) (queue Queue, err error) {
-	if path == "" {
-		err = fmt.Errorf("The path parameter is empty")
-	} else if !regexp.MustCompile(`^/?\w+(?:/[\w\$]+)*$`).MatchString(path) {
-		err = fmt.Errorf("The path parameter is invalid")
+func New(statePath string, forceRunPath string) (queue Queue, err error) {
+	var pathRegexp = regexp.MustCompile(`^/?\w+(?:/[\w\$]+)*$`)
+
+	if statePath == "" {
+		err = fmt.Errorf("The statePath parameter is empty")
+		return
+	} else if !pathRegexp.MatchString(statePath) {
+		err = fmt.Errorf("The statePath parameter is invalid")
+		return
 	}
 
-	var trimmed = strings.TrimPrefix(strings.TrimSpace(path), "/")
-	parts := strings.Split(trimmed, "/")
-	if len(parts)%2 == 0 {
-		parts = parts[:len(parts)-1]
+	if forceRunPath != "" && !pathRegexp.MatchString(forceRunPath) {
+		err = fmt.Errorf("The forceRunPath parameter is invalid")
+		return
 	}
 
-	queue = Queue{
-		rootPath:  strings.Join(parts, "/"),
-		statePath: strings.Join(append(parts, stateDocID), "/"),
+	pathWithSuffix := func(path string, suffix string) string {
+		var trimmed = strings.TrimPrefix(strings.TrimSpace(path), "/")
+		parts := strings.Split(trimmed, "/")
+		if len(parts)%2 == 0 || suffix == "" {
+			return strings.Join(parts, "/")
+		}
+		return strings.Join(append(parts, suffix), "/")
 	}
+
+	statePath = pathWithSuffix(statePath, stateDocID)
+	if forceRunPath == "" {
+		forceRunPath = statePath + "/force/" + forceRunDocID
+	}
+	forceRunPath = pathWithSuffix(forceRunPath, forceRunDocID)
+
+	queue = Queue{forceRunPath: forceRunPath, statePath: statePath}
 
 	return
 }
 
 // Processor creates a new processor instance
 func (queue Queue) Processor(workers ...Worker) (proc Processor, err error) {
-	if queue.rootPath == "" || queue.statePath == "" {
+	if queue.statePath == "" {
 		err = fmt.Errorf("Queue is not initialized")
 	}
 	proc = Processor{queue: queue, workers: workers}
@@ -86,6 +94,7 @@ func (process process) start() error {
 	var (
 		ctx         = process.ctx
 		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		forceRunRef = firebase.Firestore.Doc(process.processor.queue.forceRunPath)
 		maxAttempts = firestore.MaxAttempts(1)
 		processID   = process.processID
 	)
@@ -98,8 +107,9 @@ func (process process) start() error {
 
 		if !snap.Exists() {
 			return tran.Create(doc, State{
-				IsRunning: true,
-				LastRunID: processID,
+				ForceRunRef: forceRunRef,
+				IsRunning:   true,
+				LastRunID:   processID,
 			})
 		}
 
@@ -221,8 +231,8 @@ func (process process) forceRun() error {
 			return fmt.Errorf("The currently running is not this runner")
 		}
 
-		return tran.Update(doc, []firestore.Update{
-			{Path: "forceRun", Value: firestore.ServerTimestamp},
+		return tran.Set(state.ForceRunRef, ForceRunState{
+			QueueStateRef: doc,
 		})
 	}
 

@@ -26,30 +26,31 @@ func TestEnvironment(t *testing.T) {
 	}
 }
 
-func TestIsStatePath(t *testing.T) {
-	if want, got := false, IsStatePath("/lobby/helloUser"); want != got {
-		t.Errorf("%v != %v", want, got)
-	} else if want, got := true, IsStatePath("/lobby/$queue"); want != got {
-		t.Errorf("%v != %v", want, got)
-	}
-}
-
 func TestNew(t *testing.T) {
-	want := "The path parameter is empty"
-	if _, got := New(""); want != got.Error() {
+	var want, want1, want2 string
+	want = "The statePath parameter is empty"
+	if _, got := New("", ""); want != got.Error() {
 		t.Errorf("%v != %v", want, got)
 	}
-	want = "The path parameter is invalid"
-	if _, got := New("/test/test/"); want != got.Error() {
+	want = "The statePath parameter is invalid"
+	if _, got := New("/test/test/", ""); want != got.Error() {
 		t.Errorf("%v != %v", want, got)
 	}
-	want = "test"
-	if got, _ := New("/test/test"); want != got.rootPath {
-		t.Errorf("%v != %v", want, got.rootPath)
+	want = "The forceRunPath parameter is invalid"
+	if _, got := New("/test/test", "/hello/"); want != got.Error() {
+		t.Errorf("%v != %v", want, got)
 	}
-	want = "test/$queue"
-	if got, _ := New("/test/test"); want != got.statePath {
-		t.Errorf("%v != %v", want, got.statePath)
+	want1, want2 = "test/$queue_state", "test/$queue_state/force/$queue_force_run"
+	if got, _ := New("/test", ""); want1 != got.statePath {
+		t.Errorf("%v != %v", want1, got.statePath)
+	} else if want2 != got.forceRunPath {
+		t.Errorf("%v != %v", want2, got.forceRunPath)
+	}
+	want1, want2 = "test/lobby", "test/lobby/force/$queue_force_run"
+	if got, _ := New("/test/lobby", ""); want1 != got.statePath {
+		t.Errorf("%v != %v", want1, got.statePath)
+	} else if want2 != got.forceRunPath {
+		t.Errorf("%v != %v", want2, got.forceRunPath)
 	}
 }
 
@@ -58,7 +59,7 @@ func TestStart(t *testing.T) {
 	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
-	queue, _ := New("test")
+	queue, _ := New("test", "test")
 	processor, _ := queue.Processor(mockHandler{})
 	process := processor.createProcess(ctx, executionID, 0)
 
@@ -72,7 +73,7 @@ func TestHandle(t *testing.T) {
 	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
-	queue, _ := New("test")
+	queue, _ := New("test", "test")
 	processor, _ := queue.Processor(mockHandler{})
 	process := processor.createProcess(ctx, executionID, 0)
 
@@ -86,7 +87,7 @@ func TestStop(t *testing.T) {
 	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
-	queue, _ := New("test")
+	queue, _ := New("test", "test")
 	processor, _ := queue.Processor(mockHandler{})
 	process := processor.createProcess(ctx, executionID, 0)
 
@@ -100,7 +101,7 @@ func TestForceRun(t *testing.T) {
 	env.Init("game", "../../../.env")
 	firebase.InitializeClients()
 
-	queue, _ := New("test")
+	queue, _ := New("test", "test")
 	processor, _ := queue.Processor(mockHandler{})
 	process := processor.createProcess(ctx, executionID, 0)
 

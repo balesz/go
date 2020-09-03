@@ -9,8 +9,8 @@ import (
 
 // Queue is the struct of the queue
 type Queue struct {
-	rootPath  string
-	statePath string
+	forceRunPath string
+	statePath    string
 }
 
 type iqueue interface {
@@ -51,8 +51,14 @@ type Worker interface {
 
 // State is the type of the queue state holder
 type State struct {
-	ForceRun  time.Time `firestore:"forceRun,omitempty"`
-	IsRunning bool      `firestore:"isRunning"`
-	LastRun   time.Time `firestore:"lastRun,serverTimestamp"`
-	LastRunID string    `firestore:"lastRunID"`
+	ForceRunRef *firestore.DocumentRef `firestore:"forceRunRef"`
+	IsRunning   bool                   `firestore:"isRunning"`
+	LastRun     time.Time              `firestore:"lastRun,serverTimestamp"`
+	LastRunID   string                 `firestore:"lastRunID"`
+}
+
+// ForceRunState is the type of the force run document
+type ForceRunState struct {
+	QueueStateRef *firestore.DocumentRef `firestore:"queueStateRef"`
+	Trigger       time.Time              `firestore:"trigger,serverTimestamp"`
 }
