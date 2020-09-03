@@ -59,6 +59,7 @@ func (val FSEventValue) DataTo(dest interface{}) {
 
 // FSEventField FSEventField
 type FSEventField struct {
+	AsBoolean   *bool      `json:"booleanValue,omitempty"`
 	AsString    *string    `json:"stringValue,omitempty"`
 	AsTimestamp *time.Time `json:"timestampValue,omitempty"`
 }
@@ -69,7 +70,9 @@ func (field FSEventField) String() string {
 
 // Value gets the dynamic value of the field
 func (field FSEventField) Value() interface{} {
-	if field.AsString != nil {
+	if field.AsBoolean != nil {
+		return *field.AsBoolean
+	} else if field.AsString != nil {
 		return *field.AsString
 	} else if field.AsTimestamp != nil {
 		return *field.AsTimestamp
@@ -126,7 +129,9 @@ func (evnt MockEvent) eventValue(doc map[string]interface{}) FSEventValue {
 	var fields = map[string]FSEventField{}
 
 	for key, value := range doc {
-		if val, ok := value.(string); ok {
+		if val, ok := value.(bool); ok {
+			fields[key] = FSEventField{AsBoolean: &val}
+		} else if val, ok := value.(string); ok {
 			fields[key] = FSEventField{AsString: &val}
 		} else if val, ok := value.(time.Time); ok {
 			fields[key] = FSEventField{AsTimestamp: &val}
