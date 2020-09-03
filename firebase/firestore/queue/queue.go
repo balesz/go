@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const stateDocID = "$queue_state"
+const stateDocID = "--queue_state--"
 
-const forceRunDocID = "$queue_force_run"
+const forceRunDocID = "--queue_force_run--"
 
 // New creates a new queue
 func New(statePath string, forceRunPath string) (queue Queue, err error) {
