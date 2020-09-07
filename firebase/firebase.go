@@ -8,17 +8,21 @@ import (
 
 	firestore "cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
+	auth "firebase.google.com/go/auth"
 	database "firebase.google.com/go/db"
 )
 
 // App is the default Firebase app instance
 var App *firebase.App
 
-// Firestore is the default Firestore instance
-var Firestore *firestore.Client
+// Auth is the default Authentication instance
+var Auth *auth.Client
 
 // Database is the default Realtime Database instance
 var Database *database.Client
+
+// Firestore is the default Firestore instance
+var Firestore *firestore.Client
 
 // InitializeClients initialize Firebase app and clients
 func InitializeClients() error {
@@ -30,6 +34,10 @@ func InitializeClients() error {
 	App, err = firebase.NewApp(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("firebase.NewApp: %v", err)
+	}
+	Auth, err = App.Auth(ctx)
+	if err != nil {
+		return fmt.Errorf("App.Auth: %v", err)
 	}
 	Firestore, err = App.Firestore(ctx)
 	if err != nil {
