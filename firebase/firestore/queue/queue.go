@@ -65,10 +65,11 @@ func (processor Processor) Process(ctx context.Context, id string) error {
 
 	if err := process.start(); err != nil {
 		return fmt.Errorf("process.start: %v", err)
-	} else if err := process.handle(); err != nil {
+	}
+	defer process.stop()
+
+	if err := process.handle(); err != nil {
 		return fmt.Errorf("process.handle: %v", err)
-	} else if err := process.stop(); err != nil {
-		return fmt.Errorf("process.stop: %v", err)
 	} else if err := process.forceRun(); err != nil {
 		return fmt.Errorf("process.forceRun: %v", err)
 	}
