@@ -24,9 +24,9 @@ func LogContext(ctx context.Context, event interface{}) {
 	if err != nil {
 		return
 	}
-	log.Printf("Metadata: %v\n", meta)
-	log.Printf("Resource: %v\n", meta.Resource)
-	log.Printf("Event: %v\n", event)
+	log.Println("Metadata: ", meta)
+	log.Println("Resource: ", meta.Resource)
+	log.Println("Event: ", event)
 }
 
 // GetMetadata get Cloud Functions Metadata from context
