@@ -109,8 +109,12 @@ func (process process) start() error {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		}
 
+		if state.Disabled {
+			return fmt.Errorf("The queue is disabled")
+		}
+
 		if state.IsRunning {
-			return fmt.Errorf("The queue runner is running")
+			return fmt.Errorf("The queue is running")
 		}
 
 		return tran.Update(doc, []firestore.Update{

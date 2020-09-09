@@ -51,6 +51,7 @@ type Worker interface {
 
 // State is the type of the queue state holder
 type State struct {
+	Disabled    bool                   `firestore:"disabled"`
 	ForceRunRef *firestore.DocumentRef `firestore:"forceRunRef"`
 	IsRunning   bool                   `firestore:"isRunning"`
 	LastRun     time.Time              `firestore:"lastRun,serverTimestamp"`
