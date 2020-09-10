@@ -46,7 +46,7 @@ type iprocess interface {
 // Worker defines the queue worker interface
 type Worker interface {
 	Execute(ctx context.Context, tran *firestore.Transaction) error
-	NeedForceExec(ctx context.Context, tran *firestore.Transaction) bool
+	NeedForceExec(ctx context.Context, tran *firestore.Transaction) error
 }
 
 // State is the type of the queue state holder

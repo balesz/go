@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"cloud.google.com/go/firestore"
@@ -109,6 +110,6 @@ func (handler mockHandler) Execute(ctx context.Context, tran *firestore.Transact
 	return nil
 }
 
-func (handler mockHandler) NeedForceExec(ctx context.Context, tran *firestore.Transaction) bool {
-	return true
+func (handler mockHandler) NeedForceExec(ctx context.Context, tran *firestore.Transaction) error {
+	return fmt.Errorf("no need to force execute")
 }

@@ -219,7 +219,8 @@ func (process process) forceRun() error {
 	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		if !worker.NeedForceExec(ctx, tran) {
+		if err := worker.NeedForceExec(ctx, tran); err != nil {
+			log.Printf("worker.NeedForceExec: %v", err)
 			return nil
 		}
 
