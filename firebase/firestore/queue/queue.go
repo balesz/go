@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -58,23 +59,36 @@ func (processor Processor) Add(worker Worker) {
 }
 
 // Process method is execute the workers on the queue
-func (processor Processor) Process(ctx context.Context, id string) error {
+func (processor Processor) Process(ctx context.Context, id string) (err error) {
 	firebase.InitializeClients()
 
 	var process = processor.createProcess(ctx, id, 0)
 
-	if err := process.start(); err != nil {
-		return fmt.Errorf("process.start: %v", err)
-	}
-	defer process.stop()
-
-	if err := process.handle(); err != nil {
-		return fmt.Errorf("process.handle: %v", err)
-	} else if err := process.forceRun(); err != nil {
-		return fmt.Errorf("process.forceRun: %v", err)
+	if err = process.start(); err != nil {
+		err = fmt.Errorf("process.start: %v", err)
+		return
 	}
 
-	return nil
+	if err = process.handle(); err != nil {
+		err = fmt.Errorf("process.handle: %v", err)
+	}
+
+	if er := process.stop(); er != nil && err == nil {
+		err = fmt.Errorf("process.stop: %v", er)
+		return
+	} else if er != nil && err != nil {
+		log.Println(fmt.Errorf("process.stop: %v", er))
+		return
+	} else if er == nil && err != nil {
+		return
+	}
+
+	if err = process.forceRun(); err != nil {
+		err = fmt.Errorf("process.forceRun: %v", err)
+		return
+	}
+
+	return
 }
 
 func (processor Processor) createProcess(ctx context.Context, id string, idx int) process {
