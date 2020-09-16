@@ -5,9 +5,12 @@ import (
 	"log"
 	"regexp"
 	"testing"
+
+	"github.com/balesz/go/env"
 )
 
 func init() {
+	env.Init("game", "../.env")
 	err := CheckEnvironment()
 	if err != nil {
 		log.Fatalf("firebase.CheckEnvironment: %v", err)
@@ -18,35 +21,42 @@ func init() {
 	}
 }
 
-const path = "test/test"
+func TestMisc(test *testing.T) {}
 
-type Test struct {
-	Foo   string `firestore:"foo"`
-	Hello string `firestore:"hello"`
-}
-
-func TestFirestore(test *testing.T) {
+func xTestFirestore(test *testing.T) {
+	const path = "test/test"
 	ctx := context.Background()
+
 	doc := Firestore.Doc(path)
 	snap, err := doc.Get(ctx)
 	if err != nil {
 		test.Error(err)
 	}
 
-	var dataObj Test
+	var dataObj struct {
+		Foo   string `firestore:"foo"`
+		Hello string `firestore:"hello"`
+	}
+
 	snap.DataTo(&dataObj)
 
 	log.Println(dataObj)
 }
 
-func TestRealtimeDatabase(test *testing.T) {
+func xTestRealtimeDatabase(test *testing.T) {
+	const path = "test/test"
 	ctx := context.Background()
-	var play Test
+
+	var play struct {
+		Foo   string `firestore:"foo"`
+		Hello string `firestore:"hello"`
+	}
+
 	Database.NewRef(path).Get(ctx, &play)
 	log.Println(play)
 }
 
-func TestGetFirestorePath(test *testing.T) {
+func xTestGetFirestorePath(test *testing.T) {
 	var input = "projects/gamerpro-game/databases/(default)/documents/test/test"
 
 	rx := regexp.MustCompile(`.*\(default\)\/documents\/(.*)`)
@@ -59,7 +69,7 @@ func TestGetFirestorePath(test *testing.T) {
 	}
 }
 
-func TestGetDatabasePath(test *testing.T) {
+func xTestGetDatabasePath(test *testing.T) {
 	var input = "projects/_/instances/gamerpro-game/refs/test/test"
 
 	rx := regexp.MustCompile(`projects/_/instances/.*/refs/(.*)`)
