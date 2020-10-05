@@ -4,17 +4,21 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/spf13/viper"
 )
 
-// Init initialize the environment with viper
-func Init(environment string, configPaths ...string) error {
+// Init initialize the environment with viper and return keys
+func Init(environment string, configPaths ...string) ([]string, error) {
 	filePath := path.Dir(os.Args[0])
+	_, caller, _, _ := runtime.Caller(1)
+	callerPath := path.Dir(caller)
 
 	if len(configPaths) == 0 {
-		configPaths = append(configPaths, filePath)
+		configPaths = append(configPaths, filePath, callerPath)
 	}
 
 	for _, val := range configPaths {
@@ -22,6 +26,7 @@ func Init(environment string, configPaths ...string) error {
 			viper.AddConfigPath(val)
 		} else {
 			viper.AddConfigPath(filePath + "/" + val)
+			viper.AddConfigPath(callerPath + "/" + val)
 		}
 	}
 
@@ -29,7 +34,7 @@ func Init(environment string, configPaths ...string) error {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return fmt.Errorf("viper.ReadInConfig: %v", err)
+		return nil, fmt.Errorf("viper.ReadInConfig: %v", err)
 	}
 
 	for key, val := range viper.AllSettings() {
@@ -38,5 +43,8 @@ func Init(environment string, configPaths ...string) error {
 		}
 	}
 
-	return nil
+	keys := viper.AllKeys()
+	sort.Strings(keys)
+
+	return keys, nil
 }
