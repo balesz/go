@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -12,20 +11,17 @@ import (
 
 // Init initialize the environment with viper
 func Init(environment string, configPaths ...string) error {
-	_, caller, _, _ := runtime.Caller(1)
-	configPath := path.Dir(caller)
+	filePath := path.Dir(os.Args[0])
 
 	if len(configPaths) == 0 {
-		viper.AddConfigPath(path.Dir(os.Args[0]))
-		viper.AddConfigPath(configPath)
-	} else {
-		for _, val := range configPaths {
-			if path.IsAbs(val) {
-				viper.AddConfigPath(path.Dir(os.Args[0]) + "/" + val)
-				viper.AddConfigPath(configPath + "/" + val)
-			} else {
-				viper.AddConfigPath(val)
-			}
+		configPaths = append(configPaths, filePath)
+	}
+
+	for _, val := range configPaths {
+		if path.IsAbs(val) {
+			viper.AddConfigPath(val)
+		} else {
+			viper.AddConfigPath(filePath + "/" + val)
 		}
 	}
 
