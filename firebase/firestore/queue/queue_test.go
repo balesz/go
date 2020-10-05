@@ -18,7 +18,7 @@ var (
 
 func TestEnvironment(t *testing.T) {
 	var ctx = context.Background()
-	if err := env.Init("game", "../../../.env"); err != nil {
+	if _, err := env.Init("game", "../../../.env"); err != nil {
 		t.Error(err)
 	} else if err := firebase.InitializeClients(); err != nil {
 		t.Error(err)
