@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	firestore "cloud.google.com/go/firestore"
-	firebase "firebase.google.com/go"
-	auth "firebase.google.com/go/auth"
-	database "firebase.google.com/go/db"
+	firebase "firebase.google.com/go/v4"
+	auth "firebase.google.com/go/v4/auth"
+	database "firebase.google.com/go/v4/db"
 )
 
 // App is the default Firebase app instance
