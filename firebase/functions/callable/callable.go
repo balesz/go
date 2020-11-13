@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/balesz/go/firebase"
 )
 
 //ContextKey -
@@ -123,12 +125,13 @@ func authenticate(r *http.Request) (auth Auth, err error) {
 		idToken = strings.TrimSpace(rxToken.FindStringSubmatch(authorization)[1])
 	}
 
-	userID, err := verifyIDToken(idToken)
+	token, err := firebase.Auth.VerifyIDToken(context.Background(), idToken)
+	//userID, err := verifyIDToken(idToken)
 	if err != nil {
 		return
 	}
 
-	auth = Auth{UID: userID}
+	auth = Auth{UID: token.UID}
 	return
 }
 
