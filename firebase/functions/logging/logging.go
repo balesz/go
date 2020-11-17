@@ -4,11 +4,6 @@ import (
 	"fmt"
 )
 
-//Critical -
-func Critical(err error) {
-	printLog(err.Error(), "critical")
-}
-
 //Debug -
 func Debug(message string) {
 	printLog(message, "debug")
@@ -22,6 +17,11 @@ func Error(err error) {
 //Info -
 func Info(message string) {
 	printLog(message, "info")
+}
+
+//Warning -
+func Warning(message string) {
+	printLog(message, "warning")
 }
 
 func printLog(message string, severity string) {
