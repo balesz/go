@@ -25,6 +25,6 @@ func Warning(message string) {
 }
 
 func printLog(message string, severity string) {
-	msg := fmt.Sprintf("{\"message\": \"%v\", \"severity\": \"%v\"}", message, severity)
+	msg := fmt.Sprintf("{'message': '%v', 'severity': '%v'}", message, severity)
 	fmt.Println(msg)
 }
