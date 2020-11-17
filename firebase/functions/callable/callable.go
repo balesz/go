@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/balesz/go/firebase"
+	"github.com/balesz/go/firebase/functions/logging"
 )
 
 //ContextKey -
@@ -55,6 +56,7 @@ func NewHandler(handler Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context().Value(ContextKey)
 		if result, err := handler(ctx.(Context)); err != nil {
+			logging.Error(fmt.Errorf("Error: %v", err))
 			httpsError := newError("internal", "INTERNAL", http.StatusInternalServerError, err)
 			if result, err := json.Marshal(httpsCallableResult{Error: httpsError}); err != nil {
 				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
@@ -65,6 +67,7 @@ func NewHandler(handler Handler) http.HandlerFunc {
 				return
 			}
 		} else if result != nil {
+			logging.Info(fmt.Sprintf("Result: %v", result))
 			if result, err := json.Marshal(httpsCallableResult{Result: result}); err != nil {
 				http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 			} else {
