@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"strings"
 )
 
 //Debug -
@@ -25,6 +26,6 @@ func Warning(message string) {
 }
 
 func printLog(message string, severity string) {
-	msg := fmt.Sprintf("{'message': '%v', 'severity': '%v'}", message, severity)
-	fmt.Println(msg)
+	msg := strings.ReplaceAll(message, "\"", "'")
+	fmt.Println(fmt.Sprintf("{\"message\": \"%v\", \"severity\": \"%v\"}", msg, severity))
 }
