@@ -27,8 +27,10 @@ func Initializer(next http.Handler) http.Handler {
 
 		var err error
 		if data, err = validateRequest(r); err != nil {
+			logging.Error(err)
 			httpsError = newError("invalid-argument", "Bad Request", http.StatusBadRequest, err)
 		} else if auth, err = authenticate(r); err != nil {
+			logging.Error(err)
 			httpsError = newError("unauthenticated", "Unauthenticated", http.StatusUnauthorized, err)
 		}
 
