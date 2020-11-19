@@ -48,7 +48,7 @@ func Initializer(next http.Handler) http.Handler {
 		instanceID := r.Header.Get("Firebase-Instance-ID-Token")
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ContextKey, Context{
-			Auth: auth, Data: data, InstanceID: instanceID,
+			Auth: auth, Data: data, InstanceID: instanceID, URL: *r.URL,
 		})))
 	})
 }
