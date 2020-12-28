@@ -53,6 +53,14 @@ func Initializer(next http.Handler) http.Handler {
 	})
 }
 
+//NewContext -
+func NewContext(userID string, data interface{}) Context {
+	return Context{
+		Auth: Auth{UID: userID},
+		Data: data,
+	}
+}
+
 //NewHandler -
 func NewHandler(handler Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
