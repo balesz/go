@@ -9,8 +9,8 @@ import (
 
 // Queue is the struct of the queue
 type Queue struct {
-	forceRunPath string
-	statePath    string
+	ForceRunPath string
+	StatePath    string
 }
 
 // Task is the struct of the queue processor
