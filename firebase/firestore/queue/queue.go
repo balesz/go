@@ -39,14 +39,14 @@ func New(statePath string, forceRunPath string) (queue Queue, err error) {
 		return
 	}
 
-	queue = Queue{forceRunPath: forceRunPath, statePath: statePath}
+	queue = Queue{ForceRunPath: forceRunPath, StatePath: statePath}
 
 	return
 }
 
 // NewTask creates a new Task instance
 func (queue Queue) NewTask(id string, worker Worker) (task Task, err error) {
-	if queue.statePath == "" {
+	if queue.StatePath == "" {
 		err = fmt.Errorf("Queue is not initialized")
 	}
 	task = Task{ID: id, queue: queue, worker: worker}
@@ -84,8 +84,8 @@ func (task Task) Dispatch(ctx context.Context) (err error) {
 
 func (task Task) start(ctx context.Context) error {
 	var (
-		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
-		forceRunRef = firebase.Firestore.Doc(task.queue.forceRunPath)
+		stateRef    = firebase.Firestore.Doc(task.queue.StatePath)
+		forceRunRef = firebase.Firestore.Doc(task.queue.ForceRunPath)
 		maxAttempts = firestore.MaxAttempts(1)
 	)
 
@@ -129,7 +129,7 @@ func (task Task) start(ctx context.Context) error {
 
 func (task Task) handle(ctx context.Context) error {
 	var (
-		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.StatePath)
 		maxAttempts = firestore.MaxAttempts(5)
 	)
 
@@ -159,7 +159,7 @@ func (task Task) handle(ctx context.Context) error {
 
 func (task Task) stop(ctx context.Context) error {
 	var (
-		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.StatePath)
 		maxAttempts = firestore.MaxAttempts(5)
 	)
 
@@ -191,7 +191,7 @@ func (task Task) stop(ctx context.Context) error {
 
 func (task Task) forceRun(ctx context.Context) error {
 	var (
-		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.StatePath)
 		maxAttempts = firestore.MaxAttempts(2)
 	)
 
