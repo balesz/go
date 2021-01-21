@@ -120,7 +120,7 @@ func (task Task) start(ctx context.Context) error {
 		return tran.Update(stateRef, []firestore.Update{
 			{Path: "isRunning", Value: true},
 			{Path: "lastRun", Value: firestore.ServerTimestamp},
-			{Path: "lastRunID", Value: task.ID},
+			{Path: "lastTaskID", Value: task.ID},
 		})
 	}
 
