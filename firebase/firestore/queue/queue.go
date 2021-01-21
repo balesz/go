@@ -95,6 +95,8 @@ func (task Task) start(ctx context.Context) error {
 			return fmt.Errorf("tran.Get: %v", err)
 		}
 
+		tran.Delete(forceRunRef)
+
 		if !snap.Exists() {
 			return tran.Create(stateRef, State{
 				ForceRunRef: forceRunRef,
@@ -116,8 +118,6 @@ func (task Task) start(ctx context.Context) error {
 		if state.IsRunning {
 			return fmt.Errorf("The queue is running")
 		}
-
-		tran.Delete(state.ForceRunRef)
 
 		return tran.Update(stateRef, []firestore.Update{
 			{Path: "isRunning", Value: true},
