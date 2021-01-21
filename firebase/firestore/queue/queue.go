@@ -44,77 +44,62 @@ func New(statePath string, forceRunPath string) (queue Queue, err error) {
 	return
 }
 
-// Processor creates a new processor instance
-func (queue Queue) Processor(workers ...Worker) (proc Processor, err error) {
+// NewTask creates a new Task instance
+func (queue Queue) NewTask(id string, worker Worker) (task Task, err error) {
 	if queue.statePath == "" {
 		err = fmt.Errorf("Queue is not initialized")
 	}
-	proc = Processor{queue: queue, workers: workers}
+	task = Task{ID: id, queue: queue, worker: worker}
 	return
 }
 
-// Add method is add new worker to the processor
-func (processor Processor) Add(worker Worker) {
-	processor.workers = append(processor.workers, worker)
-}
-
-// Process method is execute the workers on the queue
-func (processor Processor) Process(ctx context.Context, id string) (err error) {
-	firebase.InitializeClients()
-
-	var process = processor.createProcess(ctx, id, 0)
-
-	if err = process.start(); err != nil {
-		err = fmt.Errorf("process.start: %v", err)
+// Dispatch method is execute the workers of the task
+func (task Task) Dispatch(ctx context.Context) (err error) {
+	if err = task.start(ctx); err != nil {
+		err = fmt.Errorf("task.start: %v", err)
 		return
 	}
 
-	if err = process.handle(); err != nil {
-		err = fmt.Errorf("process.handle: %v", err)
+	if err = task.handle(ctx); err != nil {
+		err = fmt.Errorf("task.handle: %v", err)
 	}
 
-	if er := process.stop(); er != nil && err == nil {
-		err = fmt.Errorf("process.stop: %v", er)
+	if er := task.stop(ctx); er != nil && err == nil {
+		err = fmt.Errorf("task.stop: %v", er)
 		return
 	} else if er != nil && err != nil {
-		log.Println(fmt.Errorf("process.stop: %v", er))
+		log.Println(fmt.Errorf("task.stop: %v", er))
 		return
 	} else if er == nil && err != nil {
 		return
 	}
 
-	if err = process.forceRun(); err != nil {
-		err = fmt.Errorf("process.forceRun: %v", err)
+	if err = task.forceRun(ctx); err != nil {
+		err = fmt.Errorf("task.forceRun: %v", err)
 		return
 	}
 
 	return
 }
 
-func (processor Processor) createProcess(ctx context.Context, id string, idx int) process {
-	return process{ctx: ctx, processID: id, processor: processor, worker: processor.workers[idx]}
-}
-
-func (process process) start() error {
+func (task Task) start(ctx context.Context) error {
 	var (
-		ctx         = process.ctx
-		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
-		forceRunRef = firebase.Firestore.Doc(process.processor.queue.forceRunPath)
+		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
+		forceRunRef = firebase.Firestore.Doc(task.queue.forceRunPath)
 		maxAttempts = firestore.MaxAttempts(1)
-		processID   = process.processID
 	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(doc)
+		snap, err := tran.Get(stateRef)
 		if err != nil && status.Code(err) != codes.NotFound {
 			return fmt.Errorf("tran.Get: %v", err)
 		}
 
 		if !snap.Exists() {
-			return tran.Create(doc, State{
+			return tran.Create(stateRef, State{
 				ForceRunRef: forceRunRef,
 				IsRunning:   true,
-				LastRunID:   processID,
+				LastTaskID:  task.ID,
 			})
 		}
 
@@ -132,27 +117,24 @@ func (process process) start() error {
 			return fmt.Errorf("The queue is running")
 		}
 
-		return tran.Update(doc, []firestore.Update{
+		return tran.Update(stateRef, []firestore.Update{
 			{Path: "isRunning", Value: true},
 			{Path: "lastRun", Value: firestore.ServerTimestamp},
-			{Path: "lastRunID", Value: processID},
+			{Path: "lastRunID", Value: task.ID},
 		})
 	}
 
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (process process) handle() error {
+func (task Task) handle(ctx context.Context) error {
 	var (
-		ctx         = process.ctx
-		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
 		maxAttempts = firestore.MaxAttempts(5)
-		processID   = process.processID
-		worker      = process.worker
 	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(doc)
+		snap, err := tran.Get(stateRef)
 		if err != nil && status.Code(err) != codes.NotFound {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -164,27 +146,25 @@ func (process process) handle() error {
 		if err != nil {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if !state.IsRunning {
-			return fmt.Errorf("The queue runner not running")
-		} else if state.LastRunID != processID {
-			return fmt.Errorf("The currently running is not this runner")
+			return fmt.Errorf("The queue not running")
+		} else if state.LastTaskID != task.ID {
+			return fmt.Errorf("The current task is not this one")
 		}
 
-		return worker.Execute(ctx, tran)
+		return task.worker.Execute(ctx, tran)
 	}
 
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (process process) stop() error {
+func (task Task) stop(ctx context.Context) error {
 	var (
-		ctx         = process.ctx
-		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
 		maxAttempts = firestore.MaxAttempts(5)
-		processID   = process.processID
 	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		snap, err := tran.Get(doc)
+		snap, err := tran.Get(stateRef)
 		if err != nil && status.Code(err) != codes.NotFound {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -196,12 +176,12 @@ func (process process) stop() error {
 		if err != nil {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if !state.IsRunning {
-			return fmt.Errorf("The queue runner not running")
-		} else if state.LastRunID != processID {
-			return fmt.Errorf("The currently running is not this runner")
+			return fmt.Errorf("The queue not running")
+		} else if state.LastTaskID != task.ID {
+			return fmt.Errorf("The current task is not this one")
 		}
 
-		return tran.Update(doc, []firestore.Update{
+		return tran.Update(stateRef, []firestore.Update{
 			{Path: "isRunning", Value: false},
 		})
 	}
@@ -209,22 +189,19 @@ func (process process) stop() error {
 	return firebase.Firestore.RunTransaction(ctx, transaction, maxAttempts)
 }
 
-func (process process) forceRun() error {
+func (task Task) forceRun(ctx context.Context) error {
 	var (
-		ctx         = process.ctx
-		doc         = firebase.Firestore.Doc(process.processor.queue.statePath)
+		stateRef    = firebase.Firestore.Doc(task.queue.statePath)
 		maxAttempts = firestore.MaxAttempts(2)
-		processID   = process.processID
-		worker      = process.worker
 	)
 
 	transaction := func(ctx context.Context, tran *firestore.Transaction) error {
-		if err := worker.NeedForceExec(ctx, tran); err != nil {
+		if err := task.worker.NeedForceExec(ctx, tran); err != nil {
 			log.Printf("worker.NeedForceExec: %v", err)
 			return nil
 		}
 
-		snap, err := tran.Get(doc)
+		snap, err := tran.Get(stateRef)
 		if err != nil && status.Code(err) != codes.NotFound {
 			return fmt.Errorf("tran.Get: %v", err)
 		} else if !snap.Exists() {
@@ -236,15 +213,15 @@ func (process process) forceRun() error {
 		if err != nil {
 			return fmt.Errorf("snap.DataTo: %v", err)
 		} else if state.IsRunning {
-			return fmt.Errorf("The queue runner is running")
-		} else if state.LastRunID != processID {
-			return fmt.Errorf("The currently running is not this runner")
+			return fmt.Errorf("The queue is running")
+		} else if state.LastTaskID != task.ID {
+			return fmt.Errorf("The current task is not this one")
 		} else if state.ForceRunRef == nil {
 			return fmt.Errorf("Missing forceRunRef field")
 		}
 
 		return tran.Set(state.ForceRunRef, ForceRunState{
-			QueueStateRef: doc,
+			QueueStateRef: stateRef,
 		})
 	}
 

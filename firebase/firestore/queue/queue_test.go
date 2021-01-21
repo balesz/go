@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	executionID = "helloWorld"
-	//executionID = time.Now().UTC().Format(time.RFC3339)
+	taskID = "helloWorld"
+	//taskID = time.Now().UTC().Format(time.RFC3339)
 )
 
 func TestEnvironment(t *testing.T) {
@@ -49,10 +49,9 @@ func TestStart(t *testing.T) {
 	firebase.InitializeClients()
 
 	queue, _ := New("test/--queue-state--", "test/--force-run--")
-	processor, _ := queue.Processor(mockHandler{})
-	process := processor.createProcess(ctx, executionID, 0)
+	task, _ := queue.NewTask(taskID, mockHandler{})
 
-	if err := process.start(); err != nil {
+	if err := task.start(ctx); err != nil {
 		t.Error(err)
 	}
 }
@@ -63,10 +62,9 @@ func TestHandle(t *testing.T) {
 	firebase.InitializeClients()
 
 	queue, _ := New("test/--queue-state--", "test/--force-run--")
-	processor, _ := queue.Processor(mockHandler{})
-	process := processor.createProcess(ctx, executionID, 0)
+	task, _ := queue.NewTask(taskID, mockHandler{})
 
-	if err := process.handle(); err != nil {
+	if err := task.handle(ctx); err != nil {
 		t.Error(err)
 	}
 }
@@ -77,10 +75,9 @@ func TestStop(t *testing.T) {
 	firebase.InitializeClients()
 
 	queue, _ := New("test/--queue-state--", "test/--force-run--")
-	processor, _ := queue.Processor(mockHandler{})
-	process := processor.createProcess(ctx, executionID, 0)
+	task, _ := queue.NewTask(taskID, mockHandler{})
 
-	if err := process.stop(); err != nil {
+	if err := task.stop(ctx); err != nil {
 		t.Error(err)
 	}
 }
@@ -91,10 +88,9 @@ func TestForceRun(t *testing.T) {
 	firebase.InitializeClients()
 
 	queue, _ := New("test/--queue-state--", "test/--force-run--")
-	processor, _ := queue.Processor(mockHandler{})
-	process := processor.createProcess(ctx, executionID, 0)
+	task, _ := queue.NewTask(taskID, mockHandler{})
 
-	if err := process.forceRun(); err != nil {
+	if err := task.forceRun(ctx); err != nil {
 		t.Error(err)
 	}
 }
