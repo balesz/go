@@ -13,34 +13,11 @@ type Queue struct {
 	statePath    string
 }
 
-type iqueue interface {
-	Processor(workers ...Worker) Processor
-}
-
-// Processor is the struct of the queue processor
-type Processor struct {
-	queue   Queue
-	workers []Worker
-}
-
-type iprocessor interface {
-	Add(worker Worker)
-	Process(ctx context.Context, id string) error
-	createProcess(ctx context.Context, id string, worker Worker) process
-}
-
-type process struct {
-	ctx       context.Context
-	processID string
-	processor Processor
-	worker    Worker
-}
-
-type iprocess interface {
-	start() error
-	handle() error
-	stop() error
-	forceRun() error
+// Task is the struct of the queue processor
+type Task struct {
+	ID     string
+	queue  Queue
+	worker Worker
 }
 
 // Worker defines the queue worker interface
@@ -55,7 +32,7 @@ type State struct {
 	ForceRunRef *firestore.DocumentRef `firestore:"forceRunRef"`
 	IsRunning   bool                   `firestore:"isRunning"`
 	LastRun     time.Time              `firestore:"lastRun,serverTimestamp"`
-	LastRunID   string                 `firestore:"lastRunID"`
+	LastTaskID  string                 `firestore:"lastTaskID"`
 }
 
 // ForceRunState is the type of the force run document
