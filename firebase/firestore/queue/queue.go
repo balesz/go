@@ -117,6 +117,8 @@ func (task Task) start(ctx context.Context) error {
 			return fmt.Errorf("The queue is running")
 		}
 
+		tran.Delete(state.ForceRunRef)
+
 		return tran.Update(stateRef, []firestore.Update{
 			{Path: "isRunning", Value: true},
 			{Path: "lastRun", Value: firestore.ServerTimestamp},
