@@ -1,14 +1,14 @@
-package stream_test
+package reactive_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/balesz/go/stream"
+	"github.com/balesz/go/reactive"
 )
 
-func TestMain(t *testing.T) {
+func TestChannel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -18,8 +18,8 @@ func TestMain(t *testing.T) {
 	timer := time.NewTicker(1 * time.Second)
 	defer timer.Stop()
 
-	strm := stream.NewStream(ctx)
-	defer strm.Close()
+	channel := reactive.NewChannel(ctx)
+	defer channel.Close()
 
 	counter := 0
 
@@ -27,8 +27,8 @@ func TestMain(t *testing.T) {
 		select {
 		case <-timer.C:
 			counter += 1
-			strm.Add(counter)
-		case val, opened := <-strm.Chan():
+			channel.Add(counter)
+		case val, opened := <-channel.Get():
 			if !opened {
 				return
 			}
