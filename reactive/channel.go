@@ -18,7 +18,12 @@ func (ch *channel) Get() <-chan interface{} {
 
 func (ch *channel) Add(val interface{}) {
 	if !ch.IsClosed() {
-		go func() { ch.data <- val }()
+		go func() {
+			select {
+			case ch.data <- val:
+			default:
+			}
+		}()
 	}
 }
 

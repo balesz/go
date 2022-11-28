@@ -33,7 +33,6 @@ func TestChannel(t *testing.T) {
 				return
 			}
 			t.Log(val)
-		default:
 		}
 	}
 }
